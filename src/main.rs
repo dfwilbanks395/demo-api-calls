@@ -4,6 +4,8 @@ use serde_json::json;
 
 type ReqResult<T> = Result<T, reqwest::Error>;
 
+const BASE_URL: &'static str = "http://localhost:3000/api/";
+
 #[derive(Deserialize, Debug)]
 struct UserFields {
     #[serde(deserialize_with = "parse_null_string")]
@@ -39,7 +41,7 @@ async fn authenticate(email: &str, password: &str) -> ReqResult<String> {
         }
     });
     let res = client
-        .post("http://10.0.34.152:3000/api/users/login")
+        .post(format!("{}{}", BASE_URL, "users/login"))
         .json(&body)
         .send()
         .await?;
@@ -48,7 +50,7 @@ async fn authenticate(email: &str, password: &str) -> ReqResult<String> {
 }
 
 async fn articles(token: Option<&str>) -> ReqResult<()> {
-    let url = "http://10.0.34.152:3000/api/articles";
+    let url = format!("{}{}", BASE_URL, "articles");
     let client = Client::new();
     let req = client.get(url);
     let req = if let Some(token) = token {
@@ -61,8 +63,22 @@ async fn articles(token: Option<&str>) -> ReqResult<()> {
     Ok(())
 }
 
+async fn tags(token: Option<&str>) -> ReqResult<()> {
+    let url = format!("{}{}", BASE_URL, "tags");
+    let client = Client::new();
+    let req = client.get(url);
+    let req = if let Some(token) = token {
+        req.bearer_auth(token)
+    } else {
+        req
+    };
+    let res = req.send().await?;
+    println!("Tags: {:?}", res.text().await?);
+    Ok(())
+}
+
 async fn profile(name: &str) -> ReqResult<()> {
-    let url = format!("{}{}", "http://10.0.34.152:3000/api/articles/", name);
+    let url = format!("{}{}{}", BASE_URL, "articles/", name);
     println!("get: {:?}", reqwest::get(url).await?.text().await?);
     Ok(())
 }
@@ -77,7 +93,7 @@ async fn registration(email: &str, password: &str, username: &str) -> ReqResult<
     });
     let client = Client::new();
     let user = client
-        .post("http://10.0.34.152:3000/api/users")
+        .post(format!("{}{}", BASE_URL, "users"))
         .json(&body)
         .send()
         .await?
@@ -89,7 +105,7 @@ async fn registration(email: &str, password: &str, username: &str) -> ReqResult<
 async fn current_user(token: &str) -> ReqResult<()> {
     let client = Client::new();
     let _res = client
-        .get("http://10.0.34.152:3000/api/user")
+        .get(format!("{}{}", BASE_URL, "users"))
         .bearer_auth(token)
         .send()
         .await?
@@ -115,7 +131,7 @@ async fn create_article(
         }
     });
     let res = client
-        .post("http://10.0.34.152:3000/api/articles")
+        .post(format!("{}{}", BASE_URL, "articles"))
         .bearer_auth(token)
         .json(&body)
         .send()
@@ -154,6 +170,7 @@ async fn main() -> ReqResult<()> {
     .await?;
 
     articles(Some(&token)).await?;
+    tags(None).await?;
 
     Ok(())
 }
